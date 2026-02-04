@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Copy, Trash2, Save, Send, Lightbulb, AlertCircle } from "lucide-react"
+import { Copy, Trash2, Save, Send, Lightbulb, AlertCircle, Loader2, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -55,6 +55,8 @@ export default function CoachDashboard() {
     getYesterdayPlan,
     saveDraft,
     publishPlan,
+    fetchPlans, // ★追加: データを読み込む機能
+    isLoading,  // ★追加: 読み込み中かどうか
   } = useStore()
 
   const currentPlan = getCurrentPlan()
@@ -69,6 +71,12 @@ export default function CoachDashboard() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showPublishConfirm, setShowPublishConfirm] = useState(false)
   const [suggestions, setSuggestions] = useState<{ situation: string; voiceCue: string }[]>([])
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
+  // ★重要：画面を開いたときにSupabaseからデータを取ってくる
+  useEffect(() => {
+    fetchPlans()
+  }, [])
 
   // Sync with current plan when selection changes
   useEffect(() => {
@@ -81,7 +89,46 @@ export default function CoachDashboard() {
     } else {
       clearAll()
     }
-  }, [selectedTeamId, selectedDate, selectedGradeGroup])
+  }, [currentPlan, selectedTeamId, selectedDate, selectedGradeGroup])
+  // ↑ currentPlan を依存配列に追加しました
+
+  // --- 自動保存（オートセーブ）機能 ---
+  useEffect(() => {
+    // データ読み込み中や、まだデータがない時は保存しない
+    if (isLoading) return
+    if (!currentPlan && !warmup.title && !warmup.purpose) return
+
+    // 前回のデータと全く同じなら保存しない（無限ループ防止）
+    const isChanged = JSON.stringify({ warmup, tr1, tr2, tr3, keyFactor }) !== JSON.stringify({
+        warmup: currentPlan?.warmup || emptyDrill,
+        tr1: currentPlan?.tr1 || emptyDrill,
+        tr2: currentPlan?.tr2 || emptyDrill,
+        tr3: currentPlan?.tr3 || emptyDrill,
+        keyFactor: currentPlan?.keyFactor || emptyKeyFactor
+    })
+
+    if (!isChanged) return
+
+    setSaveStatus('saving')
+    
+    const timer = setTimeout(() => {
+      saveDraft({
+        teamId: selectedTeamId,
+        date: selectedDate,
+        gradeGroup: selectedGradeGroup,
+        warmup,
+        tr1,
+        tr2,
+        tr3,
+        keyFactor,
+        createdByCoachName: coachName,
+      })
+      setSaveStatus('saved')
+      setTimeout(() => setSaveStatus('idle'), 3000)
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [warmup, tr1, tr2, tr3, keyFactor, isLoading]) 
 
   const clearAll = () => {
     setWarmup({ ...emptyDrill })
@@ -133,6 +180,7 @@ export default function CoachDashboard() {
       keyFactor,
       createdByCoachName: coachName,
     })
+    setSaveStatus('saved')
   }
 
   const handlePublish = () => {
@@ -160,19 +208,14 @@ export default function CoachDashboard() {
   }
 
   const suggestKeyFactor = () => {
-    // Collect all focus tags
     const allTags = [...warmup.focusTags, ...tr1.focusTags, ...tr2.focusTags, ...tr3.focusTags]
     const uniqueTags = [...new Set(allTags)]
-
-    // Find suggestions based on tags
     const foundSuggestions: { situation: string; voiceCue: string }[] = []
     for (const tag of uniqueTags) {
       if (KEY_FACTOR_SUGGESTIONS[tag]) {
         foundSuggestions.push(...KEY_FACTOR_SUGGESTIONS[tag])
       }
     }
-
-    // Default suggestions if no match
     if (foundSuggestions.length === 0) {
       foundSuggestions.push(
         { situation: "練習中いつでも", voiceCue: "声を出す" },
@@ -180,7 +223,6 @@ export default function CoachDashboard() {
         { situation: "成功した時", voiceCue: "もう一回やってみよう" },
       )
     }
-
     setSuggestions(foundSuggestions.slice(0, 3))
   }
 
@@ -191,6 +233,15 @@ export default function CoachDashboard() {
 
   const yesterdayPlan = getYesterdayPlan()
   const status = currentPlan?.status
+
+  if (isLoading) {
+    return (
+        <div className="flex h-screen items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            データを読み込み中...
+        </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -205,11 +256,25 @@ export default function CoachDashboard() {
             className="w-auto"
           />
           <GradeGroupTabs />
-          {status && (
-            <Badge variant={status === "published" ? "default" : "secondary"}>
-              {status === "published" ? "公開中" : "下書き"}
-            </Badge>
-          )}
+          
+          <div className="flex items-center gap-2 ml-auto">
+             {saveStatus === 'saving' && (
+               <span className="text-xs text-muted-foreground flex items-center gap-1">
+                 <Loader2 className="h-3 w-3 animate-spin" /> 保存中...
+               </span>
+             )}
+             {saveStatus === 'saved' && (
+               <span className="text-xs text-primary font-medium flex items-center gap-1">
+                 <CheckCircle2 className="h-3 w-3" /> 保存済み
+               </span>
+             )}
+            
+            {status && (
+              <Badge variant={status === "published" ? "default" : "secondary"}>
+                {status === "published" ? "公開中" : "下書き"}
+              </Badge>
+            )}
+          </div>
         </div>
       </header>
 
@@ -234,6 +299,7 @@ export default function CoachDashboard() {
               クリア
             </Button>
             <div className="flex-1" />
+            
             <Button variant="outline" size="sm" onClick={handleSaveDraft} className="gap-2 bg-transparent">
               <Save className="h-4 w-4" />
               下書き保存
@@ -244,7 +310,6 @@ export default function CoachDashboard() {
             </Button>
           </div>
 
-          {/* Validation Errors */}
           {Object.keys(errors).length > 0 && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/30 flex items-start gap-2">
               <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
@@ -252,7 +317,6 @@ export default function CoachDashboard() {
             </div>
           )}
 
-          {/* Drill Sections */}
           <div className="space-y-3 mb-6">
             <DrillAccordionSection label="Warm-up" drill={warmup} onChange={setWarmup} error={errors.warmup} />
             <DrillAccordionSection label="TR1" drill={tr1} onChange={setTr1} error={errors.tr1} />
@@ -260,7 +324,6 @@ export default function CoachDashboard() {
             <DrillAccordionSection label="TR3" drill={tr3} onChange={setTr3} error={errors.tr3} />
           </div>
 
-          {/* Key Factor Section */}
           <div className="border rounded-lg p-4 bg-accent/10">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold flex items-center gap-2">🎯 キーファクター</h3>
@@ -324,7 +387,6 @@ export default function CoachDashboard() {
         </div>
       </div>
 
-      {/* Publish Confirmation Dialog */}
       <AlertDialog open={showPublishConfirm} onOpenChange={setShowPublishConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -1,6 +1,12 @@
 import { create } from "zustand"
+import { createClient } from "@supabase/supabase-js"
 
-// Types
+// --- Supabaseのセットアップ ---
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+// --- 型定義 (変更なし) ---
 export type GradeGroup = "1-2" | "3-4" | "5-6"
 export type Intensity = "low" | "mid" | "high"
 export type PlanStatus = "draft" | "published"
@@ -51,327 +57,218 @@ export interface Template {
 
 // Focus tags
 export const FOCUS_TAGS = [
-  "ドリブル",
-  "パス",
-  "トラップ",
-  "シュート",
-  "1対1",
-  "守備",
-  "切り返し",
-  "周辺視野",
-  "判断",
-  "体の向き",
-  "サポート",
-  "切替",
-  "声かけ",
-  "コントロール",
-  "スピード",
+  "ドリブル", "パス", "トラップ", "シュート", "1対1",
+  "守備", "切り返し", "周辺視野", "判断", "体の向き",
+  "サポート", "切替", "声かけ", "コントロール", "スピード",
 ]
 
-// Empty drill
+// Empty objects
 export const emptyDrill: Drill = {
   title: "",
   purpose: "",
-  durationMin: 10,
+  durationMin: 15,
   intensity: "mid",
   focusTags: [],
   notes: "",
 }
 
-// Empty key factor
 export const emptyKeyFactor: KeyFactor = {
   situation: "",
   voiceCue: "",
 }
 
-// Seed data
-const seedTeams: Team[] = [{ id: "team-1", name: "Sample FC" }]
-
-const seedTemplates: Template[] = [
-  {
-    id: "template-1",
-    name: "Ball Mastery",
-    warmup: {
-      title: "ボールタッチ練習",
-      purpose: "ボール感覚を養う",
-      durationMin: 10,
-      intensity: "low",
-      focusTags: ["コントロール", "ドリブル"],
-      notes: "",
-    },
-    tr1: {
-      title: "インサイド・アウトサイドタッチ",
-      purpose: "両足でのボールコントロール",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["ドリブル", "コントロール", "切り返し"],
-      notes: "",
-    },
-    tr2: {
-      title: "コーンドリブル",
-      purpose: "狭いスペースでのボール扱い",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["ドリブル", "スピード", "判断"],
-      notes: "",
-    },
-    tr3: {
-      title: "フリードリブルゲーム",
-      purpose: "実践的なボールキープ",
-      durationMin: 15,
-      intensity: "high",
-      focusTags: ["ドリブル", "1対1", "周辺視野"],
-      notes: "",
-    },
-    keyFactor: {
-      situation: "相手が近づいてきた時",
-      voiceCue: "ボールを体から離さない",
-    },
-  },
-  {
-    id: "template-2",
-    name: "1v1 Attack/Defend",
-    warmup: {
-      title: "ダイナミックストレッチ",
-      purpose: "体を温める",
-      durationMin: 10,
-      intensity: "low",
-      focusTags: ["コントロール"],
-      notes: "",
-    },
-    tr1: {
-      title: "1対1 突破練習",
-      purpose: "相手を抜く技術の習得",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["1対1", "ドリブル", "切り返し"],
-      notes: "",
-    },
-    tr2: {
-      title: "1対1 守備練習",
-      purpose: "ボールを奪う技術",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["1対1", "守備", "体の向き"],
-      notes: "",
-    },
-    tr3: {
-      title: "1対1 ミニゲーム",
-      purpose: "実践的な1対1の判断力",
-      durationMin: 15,
-      intensity: "high",
-      focusTags: ["1対1", "判断", "切替"],
-      notes: "",
-    },
-    keyFactor: {
-      situation: "1対1で相手と対峙した時",
-      voiceCue: "相手の重心を見る",
-    },
-  },
-  {
-    id: "template-3",
-    name: "Passing & Support",
-    warmup: {
-      title: "パス交換",
-      purpose: "正確なパスの感覚を掴む",
-      durationMin: 10,
-      intensity: "low",
-      focusTags: ["パス", "トラップ"],
-      notes: "",
-    },
-    tr1: {
-      title: "トライアングルパス",
-      purpose: "三角形を意識したパス回し",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["パス", "サポート", "体の向き"],
-      notes: "",
-    },
-    tr2: {
-      title: "3対1 ロンド",
-      purpose: "数的優位でのボール保持",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["パス", "判断", "周辺視野"],
-      notes: "",
-    },
-    tr3: {
-      title: "4対4+2フリーマン",
-      purpose: "実践的なパスゲーム",
-      durationMin: 15,
-      intensity: "high",
-      focusTags: ["パス", "サポート", "声かけ"],
-      notes: "",
-    },
-    keyFactor: {
-      situation: "ボールを受ける前",
-      voiceCue: "先に見る・角度を作る",
-    },
-  },
-  {
-    id: "template-4",
-    name: "Finishing",
-    warmup: {
-      title: "シュート基本練習",
-      purpose: "シュートフォームの確認",
-      durationMin: 10,
-      intensity: "low",
-      focusTags: ["シュート", "コントロール"],
-      notes: "",
-    },
-    tr1: {
-      title: "ゴール前1タッチシュート",
-      purpose: "素早いシュート判断",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["シュート", "判断", "スピード"],
-      notes: "",
-    },
-    tr2: {
-      title: "ドリブルからシュート",
-      purpose: "ドリブルとシュートの連携",
-      durationMin: 15,
-      intensity: "mid",
-      focusTags: ["シュート", "ドリブル", "判断"],
-      notes: "",
-    },
-    tr3: {
-      title: "2対1+GKシュートゲーム",
-      purpose: "実践的なフィニッシュ",
-      durationMin: 15,
-      intensity: "high",
-      focusTags: ["シュート", "パス", "判断"],
-      notes: "",
-    },
-    keyFactor: {
-      situation: "シュートチャンスの時",
-      voiceCue: "ゴールを見てから蹴る",
-    },
-  },
-]
-
-const today = new Date().toISOString().split("T")[0]
-
-const seedDailyPlans: DailyPlan[] = [
-  {
-    id: "plan-1",
-    teamId: "team-1",
-    date: today,
-    gradeGroup: "3-4",
-    warmup: seedTemplates[2].warmup,
-    tr1: seedTemplates[2].tr1,
-    tr2: seedTemplates[2].tr2,
-    tr3: seedTemplates[2].tr3,
-    keyFactor: seedTemplates[2].keyFactor,
-    status: "published",
-    createdByCoachName: "田中コーチ",
-    updatedAt: new Date().toISOString(),
-  },
-]
+// --- ストアの定義 ---
 
 interface StoreState {
-  teams: Team[]
-  templates: Template[]
-  dailyPlans: DailyPlan[]
+  // 選択状態
   selectedTeamId: string
   selectedDate: string
   selectedGradeGroup: GradeGroup
 
-  // Actions
+  // データ
+  teams: Team[]
+  dailyPlans: DailyPlan[]
+  templates: Template[]
+  
+  // 読み込み中かどうか
+  isLoading: boolean
+
+  // アクション（操作）
   setSelectedTeamId: (id: string) => void
   setSelectedDate: (date: string) => void
-  setSelectedGradeGroup: (group: GradeGroup) => void
-
+  setSelectedGradeGroup: (grade: GradeGroup) => void
+  
+  // データの取得と保存
+  fetchPlans: () => Promise<void> // データを読み込む
   getCurrentPlan: () => DailyPlan | undefined
   getYesterdayPlan: () => DailyPlan | undefined
+  
+  saveDraft: (data: Omit<DailyPlan, "id" | "status" | "updatedAt">) => Promise<void>
+  publishPlan: (data: Omit<DailyPlan, "id" | "status" | "updatedAt">) => Promise<void>
+  
+  // 汎用的な保存（選手からの入力などにも使える）
+  updatePlan: (plan: DailyPlan) => Promise<void>
+}
 
-  saveDraft: (plan: Omit<DailyPlan, "id" | "status" | "updatedAt">) => void
-  publishPlan: (plan: Omit<DailyPlan, "id" | "status" | "updatedAt">) => void
-  updatePlan: (planId: string, updates: Partial<DailyPlan>) => void
+// 今日の日付を YYYY-MM-DD 形式で取得
+const getTodayString = () => {
+  const d = new Date()
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
 }
 
 export const useStore = create<StoreState>((set, get) => ({
-  teams: seedTeams,
-  templates: seedTemplates,
-  dailyPlans: seedDailyPlans,
-  selectedTeamId: seedTeams[0].id,
-  selectedDate: today,
+  selectedTeamId: "team-1",
+  selectedDate: getTodayString(),
   selectedGradeGroup: "3-4",
+  
+  teams: [
+    { id: "team-1", name: "FC Vercel U-12" },
+    { id: "team-2", name: "FC Vercel U-10" },
+  ],
+  
+  dailyPlans: [],
+  templates: [],
+  isLoading: false,
 
   setSelectedTeamId: (id) => set({ selectedTeamId: id }),
   setSelectedDate: (date) => set({ selectedDate: date }),
-  setSelectedGradeGroup: (group) => set({ selectedGradeGroup: group }),
+  setSelectedGradeGroup: (grade) => set({ selectedGradeGroup: grade }),
+
+  // ★重要：Supabaseからデータを読み込む関数
+  fetchPlans: async () => {
+    set({ isLoading: true })
+    const { data, error } = await supabase.from('plans').select('*')
+    
+    if (error) {
+      console.error('Error fetching plans:', error)
+      set({ isLoading: false })
+      return
+    }
+
+    if (data) {
+      // Supabaseのデータをアプリの形式に変換
+      const loadedPlans = data.map((row: any) => ({
+        ...row.content, // 中身を展開
+        id: row.id,     // IDは上書き
+        status: row.status,
+        updatedAt: row.updated_at
+      }))
+      set({ dailyPlans: loadedPlans, isLoading: false })
+      console.log('Fetched plans:', loadedPlans)
+    }
+  },
 
   getCurrentPlan: () => {
     const { dailyPlans, selectedTeamId, selectedDate, selectedGradeGroup } = get()
     return dailyPlans.find(
-      (p) => p.teamId === selectedTeamId && p.date === selectedDate && p.gradeGroup === selectedGradeGroup,
+      (p) =>
+        p.teamId === selectedTeamId &&
+        p.date === selectedDate &&
+        p.gradeGroup === selectedGradeGroup,
     )
   },
 
   getYesterdayPlan: () => {
     const { dailyPlans, selectedTeamId, selectedDate, selectedGradeGroup } = get()
-    const yesterday = new Date(selectedDate)
+    const today = new Date(selectedDate)
+    const yesterday = new Date(today)
     yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().split("T")[0]
+    
+    const yStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`
+    
     return dailyPlans.find(
       (p) =>
         p.teamId === selectedTeamId &&
-        p.date === yesterdayStr &&
-        p.gradeGroup === selectedGradeGroup &&
-        p.status === "published",
+        p.date === yStr &&
+        p.gradeGroup === selectedGradeGroup,
     )
   },
 
-  saveDraft: (plan) => {
-    const { dailyPlans, selectedTeamId, selectedDate, selectedGradeGroup } = get()
-    const existingIndex = dailyPlans.findIndex(
-      (p) => p.teamId === selectedTeamId && p.date === selectedDate && p.gradeGroup === selectedGradeGroup,
-    )
-
+  // ★重要：保存機能（自動保存で呼ばれる）
+  saveDraft: async (data) => {
+    const { dailyPlans, fetchPlans } = get()
+    
+    // すでに同じ日付・チームのプランがあるか探す
+    const existingPlan = get().getCurrentPlan()
+    
+    // IDを決める（あれば使う、なければ作る）
+    const planId = existingPlan ? existingPlan.id : `plan-${Date.now()}`
+    
     const newPlan: DailyPlan = {
-      ...plan,
-      id: existingIndex >= 0 ? dailyPlans[existingIndex].id : `plan-${Date.now()}`,
+      ...data,
+      id: planId,
       status: "draft",
       updatedAt: new Date().toISOString(),
     }
 
-    if (existingIndex >= 0) {
-      const updated = [...dailyPlans]
-      updated[existingIndex] = newPlan
-      set({ dailyPlans: updated })
+    // メモリ上のデータを即座に更新（画面の反応を良くするため）
+    if (existingPlan) {
+        set({ dailyPlans: dailyPlans.map(p => p.id === planId ? newPlan : p) })
     } else {
-      set({ dailyPlans: [...dailyPlans, newPlan] })
+        set({ dailyPlans: [...dailyPlans, newPlan] })
     }
+
+    // Supabaseに送信
+    const { error } = await supabase.from('plans').upsert({
+      id: planId,
+      team_id: data.teamId,
+      date: data.date,
+      grade_group: data.gradeGroup,
+      content: newPlan, // 内容をJSONとして保存
+      status: 'draft',
+      updated_at: newPlan.updatedAt,
+      created_by: data.createdByCoachName
+    })
+
+    if (error) console.error('Save failed:', error)
   },
 
-  publishPlan: (plan) => {
-    const { dailyPlans, selectedTeamId, selectedDate, selectedGradeGroup } = get()
-    const existingIndex = dailyPlans.findIndex(
-      (p) => p.teamId === selectedTeamId && p.date === selectedDate && p.gradeGroup === selectedGradeGroup,
-    )
+  publishPlan: async (data) => {
+    const { dailyPlans } = get()
+    const existingPlan = get().getCurrentPlan()
+    const planId = existingPlan ? existingPlan.id : `plan-${Date.now()}`
 
     const newPlan: DailyPlan = {
-      ...plan,
-      id: existingIndex >= 0 ? dailyPlans[existingIndex].id : `plan-${Date.now()}`,
+      ...data,
+      id: planId,
       status: "published",
       updatedAt: new Date().toISOString(),
     }
 
-    if (existingIndex >= 0) {
-      const updated = [...dailyPlans]
-      updated[existingIndex] = newPlan
-      set({ dailyPlans: updated })
-    } else {
-      set({ dailyPlans: [...dailyPlans, newPlan] })
-    }
-  },
+    set({ dailyPlans: dailyPlans.map(p => p.id === planId ? newPlan : p) })
 
-  updatePlan: (planId, updates) => {
-    const { dailyPlans } = get()
-    const updated = dailyPlans.map((p) =>
-      p.id === planId ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p,
-    )
-    set({ dailyPlans: updated })
+    // Supabaseに送信（ステータスを published に）
+    await supabase.from('plans').upsert({
+      id: planId,
+      team_id: data.teamId,
+      date: data.date,
+      grade_group: data.gradeGroup,
+      content: newPlan,
+      status: 'published',
+      updated_at: newPlan.updatedAt,
+      created_by: data.createdByCoachName
+    })
   },
+  
+  // 選手画面などで使う汎用保存
+  updatePlan: async (plan) => {
+     const { dailyPlans } = get()
+     // メモリ更新
+     set({ dailyPlans: dailyPlans.map(p => p.id === plan.id ? plan : p) })
+     
+     // DB更新
+     await supabase.from('plans').upsert({
+      id: plan.id,
+      team_id: plan.teamId,
+      date: plan.date,
+      grade_group: plan.gradeGroup,
+      content: plan,
+      status: plan.status,
+      updated_at: new Date().toISOString(),
+      created_by: plan.createdByCoachName
+    })
+  }
 }))
